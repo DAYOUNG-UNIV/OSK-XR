@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BotaniMate: Affective Interaction with Plant’s Data in MR</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans KR"', 'sans-serif'],
+                    },
+                    colors: {
+                        meta: {
+                            canvas: '#ffffff',
+                            surface: '#f9fafb',
+                            'surface-soft': '#f3f4f6',
+                            primary: '#15803d', // 전문적이고 차분한 녹색 (Green 700)
+                            'primary-soft': '#f0fdf4', // 연한 녹색 배경
+                            'ink-deep': '#1a1d20',
+                            ink: '#4a4e52',
+                            charcoal: '#64686c',
+                            slate: '#8a8d91',
+                            hairline: '#e5e7eb',
+                            'hairline-soft': '#f3f4f6',
+                            accent: '#047857', // 진한 녹색
+                        }
+                    },
+                    borderRadius: {
+                        'xl': '16px',
+                        'xxl': '24px',
+                        'xxxl': '32px',
+                        'feature': '40px',
+                        'full': '100px',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #ffffff;
+            color: #1a1d20;
+            -webkit-font-smoothing: antialiased;
+            /* 한글 단어 잘림 방지 (자연스러운 개행) */
+            word-break: keep-all; 
+            overflow-wrap: break-word;
+        }
+        
+        #slides-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 4rem 6rem;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+        }
+        
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            z-index: 10;
+        }
+
+        #notes-panel {
+            position: fixed;
+            bottom: -400px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 800px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid #e5e7eb;
+            border-radius: 24px 24px 0 0;
+            padding: 2.5rem;
+            transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 50;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.08);
+        }
+
+        #notes-panel.open {
+            bottom: 0;
+        }
+
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #e5e7eb;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #d1d5db;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Slide 1: Title -->
+    <!-- 패딩 강제 초기화(!p-0) 및 내부 콘텐츠 영역 100% 채운 후 완벽한 중앙 정렬 적용 -->
+    <div id="slide-1" class="slide active !p-0">
+        <!-- Subtle Background Decoration -->
+        <div class="absolute inset-0 z-0 flex items-center justify-center opacity-30 pointer-events-none">
+            <div class="w-[80vh] h-[80vh] max-w-[800px] max-h-[800px] rounded-full bg-gradient-to-tr from-meta-primary-soft to-transparent blur-3xl"></div>
+        </div>
+        
+        <div class="w-full h-full flex flex-col justify-center items-center text-center relative z-10">
+            <div class="max-w-5xl mx-auto flex flex-col items-center">
+                <span class="inline-block px-4 py-1.5 rounded-full bg-meta-surface border border-meta-hairline text-meta-primary font-bold tracking-tight mb-8 text-sm">
+                    한국광학회 XR 산업 특별세션
+                </span>
+                <h1 class="text-7xl md:text-8xl font-black leading-[1.15] mb-6 tracking-tighter text-meta-ink-deep">
+                    BotaniMate.<br>
+                    <span class="text-meta-primary">Affective MR.</span>
+                </h1>
+                <p class="text-2xl text-meta-charcoal font-light tracking-tight mb-12">
+                    반려식물 데이터의 감성적 시각화 공간 위젯
+                </p>
+                
+                <div class="text-left inline-block border-t-2 border-meta-hairline pt-8 min-w-[240px]">
+                    <p class="text-lg font-bold text-meta-ink-deep tracking-tight mb-1">서강대학교 아트&테크놀로지</p>
+                    <p class="text-meta-ink">이다영, 주진호</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 2: Problem Statement -->
+    <div id="slide-2" class="slide">
+        <div class="max-w-6xl mx-auto w-full h-full flex flex-col justify-center">
+            <div class="mb-16">
+                <h2 class="text-5xl font-bold text-meta-ink-deep tracking-tighter mb-4">문제 제기 및 해결 방향</h2>
+                <p class="text-xl text-meta-charcoal font-light">데이터 시각화를 넘어선 감성적 상호작용의 필요성</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-12">
+                <!-- Problem Card -->
+                <div class="bg-meta-surface p-12 rounded-xxxl border border-meta-hairline flex flex-col h-full">
+                    <h3 class="text-2xl font-bold text-meta-ink-deep mb-4 tracking-tight">시각적 피드백의 부재</h3>
+                    <div class="h-1 w-12 bg-meta-charcoal mb-6"></div>
+                    <p class="text-meta-ink text-lg leading-relaxed mb-4">
+                        흙 속 수분 등 눈에 보이지 않는 식물의 상태는 초보 관리자가 직관적으로 파악하기 매우 어렵습니다.
+                    </p>
+                    <p class="text-meta-ink text-lg leading-relaxed">
+                        단순히 수치화된 데이터만으로는 일상적인 관리 습관을 기르거나 정서적 유대감을 형성하는 데 명확한 한계가 존재합니다.
+                    </p>
+                </div>
+
+                <!-- Solution Card -->
+                <div class="bg-meta-primary-soft p-12 rounded-xxxl border border-meta-primary/20 flex flex-col h-full">
+                    <h3 class="text-2xl font-bold text-meta-primary mb-4 tracking-tight">Affective Feedback</h3>
+                    <div class="h-1 w-12 bg-meta-primary mb-6"></div>
+                    <p class="text-meta-ink text-lg leading-relaxed">
+                        건조한 수치 데이터를 넘어선 <strong class="text-meta-primary font-bold">감성적 피드백</strong>을 제공합니다. 
+                    </p>
+                    <p class="text-meta-ink text-lg leading-relaxed mt-4">
+                        단순한 정보의 전달을 뛰어넘어, 사용자와 가상 캐릭터 간의 깊은 정서적 교감과 유대감을 형성하는 것이 본 연구의 핵심 목표입니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 3: Pipeline -->
+    <div id="slide-3" class="slide">
+        <div class="max-w-6xl mx-auto w-full h-full flex flex-col justify-center">
+            <div class="mb-12">
+                <h2 class="text-5xl font-bold text-meta-ink-deep tracking-tighter mb-4">시스템 파이프라인</h2>
+                <p class="text-xl text-meta-charcoal font-light">IoT 센싱부터 혼합현실 내 사용자 경험까지의 데이터 흐름</p>
+            </div>
+            
+            <!-- Process Grid -->
+            <div class="grid grid-cols-4 gap-6 mb-10">
+                <div class="bg-meta-surface p-6 rounded-2xl border border-meta-hairline">
+                    <span class="text-meta-slate text-xs font-bold tracking-widest block mb-2">01. SENSING</span>
+                    <h4 class="text-lg font-bold text-meta-ink-deep mb-2">IoT Sensor</h4>
+                    <p class="text-meta-charcoal text-sm leading-relaxed">화분의 토양 수분 및 온도 데이터 실시간 수집</p>
+                </div>
+                <div class="bg-meta-surface p-6 rounded-2xl border border-meta-hairline">
+                    <span class="text-meta-slate text-xs font-bold tracking-widest block mb-2">02. SYNC</span>
+                    <h4 class="text-lg font-bold text-meta-ink-deep mb-2">Cloud Storage</h4>
+                    <p class="text-meta-charcoal text-sm leading-relaxed">NodeMCU를 통한 구글 시트 5분 주기 동기화</p>
+                </div>
+                <div class="bg-meta-surface p-6 rounded-2xl border border-meta-hairline">
+                    <span class="text-meta-slate text-xs font-bold tracking-widest block mb-2">03. RENDERING</span>
+                    <h4 class="text-lg font-bold text-meta-ink-deep mb-2">MR Application</h4>
+                    <p class="text-meta-charcoal text-sm leading-relaxed">Meta Quest 3 기반 가상 테라리움 공간 렌더링</p>
+                </div>
+                <div class="bg-meta-primary-soft p-6 rounded-2xl border border-meta-primary/20">
+                    <span class="text-meta-primary text-xs font-bold tracking-widest block mb-2">04. INTERACTION</span>
+                    <h4 class="text-lg font-bold text-meta-primary mb-2">Affective UX</h4>
+                    <p class="text-meta-charcoal text-sm leading-relaxed">상태에 따른 시각적·행동적 감성 피드백 경험</p>
+                </div>
+            </div>
+
+            <!-- Pipeline Image Placeholder (bg-white 적용하여 여백 발생 시 흰색으로 매끄럽게 처리) -->
+            <div class="w-full h-[40vh] bg-white rounded-xxxl flex flex-col items-center justify-center text-meta-charcoal relative overflow-hidden">
+                <span class="font-bold tracking-widest text-xs text-meta-slate">SYSTEM PIPELINE IMAGE PLACEHOLDER</span>
+                <img src="./InfoGraphic.png" alt="시스템 파이프라인 다이어그램" class="absolute inset-0 w-full h-full object-contain" /> 
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 4: Data Mapping -->
+    <div id="slide-4" class="slide">
+        <div class="max-w-6xl mx-auto w-full h-full flex flex-col justify-center">
+            <div class="mb-12">
+                <h2 class="text-5xl font-bold text-meta-ink-deep tracking-tighter mb-4">다차원적 데이터 매핑</h2>
+                <p class="text-xl text-meta-charcoal font-light">테라리움 환경과 가상 캐릭터를 통한 직관적 상태 표현</p>
+            </div>
+
+            <!-- Card Grid Layout -->
+            <div class="grid grid-cols-3 gap-8">
+                <!-- Data 1 -->
+                <div class="bg-meta-canvas border border-meta-hairline rounded-xxxl p-6 flex flex-col h-full shadow-sm">
+                    <div class="w-full aspect-[4/3] bg-white rounded-2xl flex flex-col items-center justify-center mb-8 relative overflow-hidden">
+                        <span class="text-meta-slate text-xs font-bold tracking-widest">TEMP IMAGE</span>
+                        <img src="./temperature.png" class="absolute inset-0 w-full h-full object-contain" />
+                    </div>
+                    <span class="text-meta-charcoal text-xs font-bold uppercase tracking-widest mb-2 block">Temperature</span>
+                    <h3 class="text-2xl font-bold text-meta-ink-deep mb-3 tracking-tight">공간의 색상</h3>
+                    <p class="text-meta-ink text-base leading-relaxed">
+                        테라리움 공간의 색상 그래디언트를 변경하여, 온도의 높고 낮음을 웜톤과 쿨톤으로 직관적으로 시각화합니다.
+                    </p>
+                </div>
+                
+                <!-- Data 2 -->
+                <div class="bg-meta-canvas border border-meta-hairline rounded-xxxl p-6 flex flex-col h-full shadow-sm">
+                    <div class="w-full aspect-[4/3] bg-white rounded-2xl flex flex-col items-center justify-center mb-8 relative overflow-hidden">
+                        <span class="text-meta-slate text-xs font-bold tracking-widest">HUMIDITY IMAGE</span>
+                        <img src="./humid.png" class="absolute inset-0 w-full h-full object-contain" />
+                    </div>
+                    <span class="text-meta-charcoal text-xs font-bold uppercase tracking-widest mb-2 block">Humidity</span>
+                    <h3 class="text-2xl font-bold text-meta-ink-deep mb-3 tracking-tight">대기 및 식생</h3>
+                    <p class="text-meta-ink text-base leading-relaxed">
+                        대기 습도 데이터에 비례하여 테라리움 내 구름의 양, 대기 밀도, 그리고 식물의 성장 정도를 조절합니다.
+                    </p>
+                </div>
+
+                <!-- Data 3 (Primary) -->
+                <div class="bg-meta-canvas border-2 border-meta-primary/20 rounded-xxxl p-6 flex flex-col h-full shadow-md relative overflow-hidden">
+                    <div class="w-full aspect-[4/3] bg-white rounded-2xl flex flex-col items-center justify-center mb-8 relative overflow-hidden">
+                        <span class="text-meta-primary/60 text-xs font-bold tracking-widest">CHARACTER IMAGE</span>
+                        <img src="./characteranim.png" class="absolute inset-0 w-full h-full object-contain" />
+                    </div>
+                    <span class="text-meta-primary text-xs font-bold uppercase tracking-widest mb-2 block">Soil Moisture</span>
+                    <h3 class="text-2xl font-bold text-meta-primary mb-3 tracking-tight">행동 단서</h3>
+                    <p class="text-meta-ink text-base leading-relaxed">
+                        가장 핵심적인 지표입니다. 수분 부족 시 캐릭터가 떼를 쓰고, 충분 시 점프하는 등 생동감 있는 애니메이션을 출력합니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 5: Interaction -->
+    <div id="slide-5" class="slide">
+        <div class="max-w-6xl mx-auto w-full h-full flex flex-col justify-center">
+            <div class="mb-16">
+                <h2 class="text-5xl font-bold text-meta-ink-deep tracking-tighter mb-4">직관적 공간 상호작용</h2>
+                <p class="text-xl text-meta-charcoal font-light">컨트롤러 없이 현실 공간과 매끄럽게 융합되는 MR 경험</p>
+            </div>
+
+            <div class="grid grid-cols-5 gap-16 items-center">
+                <!-- Text Content (3/5 width) -->
+                <div class="col-span-3 space-y-12">
+                    <div class="flex gap-6">
+                        <div class="w-10 h-10 rounded-full bg-meta-surface border border-meta-hairline flex items-center justify-center font-bold text-meta-ink-deep shrink-0">1</div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-meta-ink-deep mb-3 tracking-tight">Scene Understanding</h3>
+                            <p class="text-meta-ink text-lg leading-relaxed">
+                                가상 테라리움이 현실의 화분 위치에 정밀하게 중첩됩니다. Depth API를 적용하여 사용자 손이나 주변 가구에 의한 자연스러운 가림 처리를 구현했습니다.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6">
+                        <div class="w-10 h-10 rounded-full bg-meta-surface border border-meta-hairline flex items-center justify-center font-bold text-meta-ink-deep shrink-0">2</div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-meta-ink-deep mb-3 tracking-tight">자연스러운 손 제스처</h3>
+                            <p class="text-meta-ink text-lg leading-relaxed">
+                                별도의 컨트롤러 없이 Pinch & Grab 제스처를 사용하여 가상 캐릭터를 직접 잡거나 들어올릴 수 있어, 보다 깊은 정서적 물리적 교감을 유도합니다.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6">
+                        <div class="w-10 h-10 rounded-full bg-meta-surface border border-meta-hairline flex items-center justify-center font-bold text-meta-ink-deep shrink-0">3</div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-meta-ink-deep mb-3 tracking-tight">과거 데이터 탐색 UI</h3>
+                            <p class="text-meta-ink text-lg leading-relaxed">
+                                공간에 띄워진 우체통 형태의 UI를 찌르는 제스처를 통해 어제나 지난주 등 과거의 데이터 기록을 손쉽게 탐색할 수 있습니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Image Placeholder (2/5 width) -->
+                <div class="col-span-2">
+                    <div class="w-full aspect-[4/5] bg-white rounded-xxxl flex flex-col items-center justify-center relative overflow-hidden">
+                        <span class="font-bold tracking-widest text-sm text-meta-slate text-center">INTERACTION IMAGE</span>
+                        <img src="./holdCharacter.png" class="absolute inset-0 w-full h-full object-contain" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 6: Future Work -->
+    <div id="slide-6" class="slide">
+        <div class="max-w-6xl mx-auto w-full h-full flex flex-col justify-center">
+            <div class="mb-10">
+                <h2 class="text-5xl font-bold text-meta-ink-deep tracking-tighter mb-4">결론 및 향후 계획</h2>
+                <p class="text-xl text-meta-charcoal font-light">단순 알림을 넘어선 지능형 감성 에이전트로의 진화</p>
+            </div>
+
+            <div class="mb-10 bg-meta-surface p-6 rounded-2xl border border-meta-hairline border-l-4 border-l-meta-ink-deep">
+                <p class="text-meta-ink-deep text-xl leading-relaxed font-medium">
+                    BotaniMate는 추상적인 수치 데이터를 직관적이고 감성적인 MR 위젯으로 변환하여, 사용자의 일상적 식물 관리 활동에 대한 <strong class="font-bold text-meta-primary">지속적인 참여</strong>와 공감대를 성공적으로 이끌어냈습니다.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-10">
+                <!-- Current -->
+                <div class="border border-meta-hairline p-8 rounded-xxxl flex flex-col">
+                    <div class="mb-6 inline-flex">
+                        <span class="px-3 py-1 rounded-full bg-meta-surface text-meta-charcoal text-xs font-bold tracking-widest border border-meta-hairline">CURRENT PHASE</span>
+                    </div>
+                    <h4 class="font-bold text-meta-ink-deep text-2xl mb-4">규칙 기반 피드백</h4>
+                    <p class="text-lg text-meta-ink leading-relaxed">
+                        현재 시스템은 사전에 정의된 수치 임계값에 따라 단방향의 애니메이션 및 환경 변화를 출력하는 구조를 가지고 있습니다.
+                    </p>
+                </div>
+
+                <!-- Next Step -->
+                <div class="border-2 border-meta-primary bg-meta-primary-soft p-8 rounded-xxxl flex flex-col">
+                    <div class="mb-6 inline-flex">
+                        <span class="px-3 py-1 rounded-full bg-meta-primary text-white text-xs font-bold tracking-widest shadow-sm">NEXT STEP</span>
+                    </div>
+                    <h4 class="font-bold text-meta-primary text-2xl mb-4">LLM 기반 지능형 에이전트</h4>
+                    <p class="text-lg text-meta-ink leading-relaxed mb-6">
+                        시계열 IoT 데이터 분석 및 사용자의 상호작용 이력을 결합하여, 실시간 상황을 스스로 인지하는 초개인화 대화를 생성할 계획입니다.
+                    </p>
+                    <div class="mt-auto bg-white p-4 rounded-xl border border-meta-primary/20 shadow-sm">
+                        <p class="text-meta-ink-deep font-medium italic">"지난주부터 계속 목이 말랐어요. 오늘 물을 주셔서 고마워요!"</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Info -->
+    <div class="fixed bottom-8 right-10 flex items-center gap-6 z-40 text-meta-ink-deep text-sm font-bold tracking-tight">
+        <button onclick="prevSlide()" class="w-12 h-12 rounded-full bg-white border border-meta-hairline flex items-center justify-center hover:bg-meta-surface transition shadow-sm text-lg">→</button>
+        <span id="slide-counter" class="w-12 text-center">1 / 6</span>
+        <button onclick="nextSlide()" class="w-12 h-12 rounded-full bg-meta-ink-deep text-white flex items-center justify-center hover:bg-black transition shadow-sm text-lg">→</button>
+    </div>
+    
+    <!-- Script Toggle -->
+    <button onclick="toggleNotes()" class="fixed bottom-8 left-10 z-40 px-6 py-3 rounded-full bg-white border border-meta-hairline hover:bg-meta-surface text-meta-ink-deep flex items-center justify-center transition shadow-sm text-sm font-bold tracking-tight">
+        발표 대본 보기
+    </button>
+
+    <!-- Speaker Notes Panel -->
+    <div id="notes-panel">
+        <div class="flex justify-between items-center mb-6 border-b border-meta-hairline pb-4">
+            <h3 class="text-lg font-bold text-meta-ink-deep tracking-tight flex items-center gap-2">
+                발표자 대본
+            </h3>
+            <button onclick="toggleNotes()" class="w-8 h-8 rounded-full bg-meta-surface flex items-center justify-center text-meta-charcoal hover:text-meta-ink-deep hover:bg-meta-hairline transition font-bold">
+                ✕
+            </button>
+        </div>
+        <div id="notes-content" class="text-meta-charcoal text-lg leading-loose overflow-y-auto h-[160px] pr-4 font-normal">
+            <!-- Dynamic notes content -->
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        const scripts = [
+            "안녕하십니까, 서강대학교 아트&테크놀로지 연구팀의 [발표자 이름]입니다. 오늘 한국광학회 XR 산업 특별세션이라는 뜻깊은 자리에서 저희의 연구를 소개하게 되어 영광입니다.<br><br>오늘 제가 발표할 주제는 'BotaniMate(보타니메이트)'입니다. 혼합현실 환경에서 사용자가 반려식물의 생육 데이터를 숫자가 아닌 '감성적인 형태'로 교감할 수 있도록 돕는 공간 위젯 시스템입니다. 데이터가 어떻게 감성적 상호작용으로 이어지는지 공유하고자 합니다.",
+            
+            "IoT 센서의 발전으로 수많은 환경 데이터를 얻게 되었지만, 초보자들에게 데이터는 여전히 차갑고 어려운 '숫자'일 뿐입니다.<br><br>식물 관리에서 가장 큰 어려움은 '시각적 피드백의 부재'입니다. 흙 속의 수분은 눈에 보이지 않기 때문에 상태를 직관적으로 파악하기 어렵고 습관을 형성하는 데 실패하곤 합니다.<br><br>저희는 데이터를 단순히 시각화하는 것을 넘어, 정서적 유대감을 형성할 수 있는 '감성적 피드백' 시스템을 제안하고자 했습니다.",
+            
+            "BotaniMate의 핵심 파이프라인입니다. 물리적 환경 센싱, 클라우드 동기화, MR 렌더링, 그리고 감성적 상호작용이라는 4단계를 거칩니다.<br><br>화분의 토양 수분 및 온도 센서 데이터는 NodeMCU를 통해 5분 주기로 클라우드에 동기화됩니다. 메타 퀘스트 3 기반의 애플리케이션은 이 데이터를 실시간으로 읽어와 화분 위치에 정박된 가상의 테라리움 위젯으로 렌더링합니다.",
+            
+            "수집된 센서 데이터는 3가지 요소를 통해 다차원적으로 매핑됩니다.<br><br>첫째, 온도는 테라리움 공간의 색상 그래디언트로 표현되어 덥고 서늘함을 웜톤과 쿨톤으로 직관적으로 보여줍니다. 둘째, 대기 습도는 식생의 성장 정도나 구름의 양으로 시각화됩니다.<br><br>가장 핵심적인 셋째는 토양 수분입니다. 수분이 부족할 때는 캐릭터가 누워 투정을 부리고, 충분할 때는 높이 점프합니다. 이를 통해 사용자는 식물의 목마름을 깊게 체감하게 됩니다.",
+            
+            "사용자는 별도의 컨트롤러 없이 자연스러운 손 제스처로 교감할 수 있습니다. 퀘스트 3의 핸드 트래킹 기술을 활용해 가상 캐릭터를 꼬집거나 들어 올릴 수 있습니다.<br><br>또한 화분 옆 우체통 UI를 찌르면 어제나 지난주의 과거 데이터를 탐색할 수 있습니다. Scene Understanding 기술이 적용되어, 물리적인 화분과 가상의 요소가 이질감 없이 융합되며 깊은 교감을 이끌어냅니다.",
+            
+            "결론적으로 BotaniMate는 추상적인 수치 데이터를 직관적이고 감성적인 위젯으로 변환하여 지속적인 식물 관리 참여를 유도했습니다.<br><br>저희 팀의 향후 연구 핵심은 이 파이프라인에 'LLM(대규모 언어 모델)'을 통합하는 것입니다. 현재는 정해진 규칙 기반으로 작동하지만, 앞으로는 IoT 데이터와 상호작용 이력을 분석하여 맥락을 인지하게 할 예정입니다.<br><br>단순한 피드백을 넘어 \"지난주부터 계속 목이 말랐어요\"처럼 상황에 맞는 대화를 건네는 지능형 감성 에이전트로의 발전이 다음 목표입니다. 경청해 주셔서 감사합니다."
+        ];
+
+        let currentSlide = 0;
+        const totalSlides = 6;
+        const slides = document.querySelectorAll('.slide');
+        const counter = document.getElementById('slide-counter');
+        const notesContent = document.getElementById('notes-content');
+        
+        function updateSlide() {
+            slides.forEach((slide, index) => {
+                if (index === currentSlide) {
+                    slide.classList.add('active');
+                } else {
+                    slide.classList.remove('active');
+                }
+            });
+            counter.innerText = `${currentSlide + 1} / ${totalSlides}`;
+            notesContent.innerHTML = scripts[currentSlide];
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlide();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'Space') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+
+        document.querySelector('button[onclick="prevSlide()"]').innerText = "←";
+
+        function toggleNotes() {
+            document.getElementById('notes-panel').classList.toggle('open');
+        }
+
+        updateSlide();
+    </script>
+</body>
+</html>
